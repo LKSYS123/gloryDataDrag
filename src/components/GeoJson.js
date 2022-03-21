@@ -1,4 +1,5 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { connect } from 'react-redux';
 import GeoJSON from 'ol/format/GeoJSON';
 import Map from 'ol/Map';
 import View from 'ol/View';
@@ -21,71 +22,81 @@ import {
     defaults as defaultInteractions,
 } from 'ol/interaction';
 import { platformModifierKeyOnly } from 'ol/events/condition';
+import { addCargo } from '../actions/gloryAction';
+
+import GeoJsonCopy from './GeoJsonCopy';
+
+import OpenlayerPop from './OpenlayerPop';
 
 // 도형 json
 import object from '../object';
 
 import 'ol/ol.css';
 
-const GeoJson = () => {
-    useEffect(() => {
-        const styles = {
-            MultiPolygon: new Style({
-                // 테두리
-                stroke: new Stroke({
-                    color: 'blue',
-                    width: 2,
-                }),
-                // 내부 색상
-                fill: new Fill({
-                    color: 'rgba(0, 0, 255, 0.1)',
-                }),
-            }),
-            Polygon: new Style({
-                // 테두리
-                stroke: new Stroke({
-                    color: 'blue',
-                    lineDash: [50],
-                    width: 2,
-                }),
-                // 내부 색상
-                fill: new Fill({
-                    color: 'rgba(0, 0, 255, 0.1)',
-                }),
-                // 주석
-                text: new Text({
-                    font: '20px Calibri,sans-serif',
-                    fill: new Fill({
-                        color: 'rgba(255, 255, 255, 1)',
-                    }),
-                    backgroundFill: new Fill({
-                        color: 'rgba(100, 0, 0, 0.7)',
-                    }),
-                    scale: [1, 1],
-                    padding: [5, 5, 5, 5],
-                    offsetX: 0,
-                    offsetY: 0,
-                    text: '텍스트',
-                }),
-            }),
-            GeometryCollection: new Style({
-                stroke: new Stroke({
-                    color: 'magenta',
-                    width: 2,
-                }),
-                fill: new Fill({
-                    color: 'magenta',
-                }),
-                image: new CircleStyle({
-                    radius: 10,
-                    fill: null,
-                    stroke: new Stroke({
-                        color: 'magenta',
-                    }),
-                }),
-            }),
-        };
+/*=============================================================================*/
 
+const styles = {
+    MultiPolygon: new Style({
+        // 테두리
+        stroke: new Stroke({
+            color: 'blue',
+            width: 2,
+        }),
+        // 내부 색상
+        fill: new Fill({
+            color: 'rgba(0, 0, 255, 0.1)',
+        }),
+    }),
+    Polygon: new Style({
+        // 테두리
+        stroke: new Stroke({
+            color: 'blue',
+            lineDash: [50],
+            width: 2,
+        }),
+        // 내부 색상
+        fill: new Fill({
+            color: 'rgba(0, 0, 255, 0.1)',
+        }),
+        // 주석
+        text: new Text({
+            font: '20px Calibri,sans-serif',
+            fill: new Fill({
+                color: 'rgba(255, 255, 255, 1)',
+            }),
+            backgroundFill: new Fill({
+                color: 'rgba(100, 0, 0, 0.7)',
+            }),
+            scale: [1, 1],
+            padding: [5, 5, 5, 5],
+            offsetX: 0,
+            offsetY: 0,
+            text: '텍스트',
+        }),
+    }),
+    GeometryCollection: new Style({
+        stroke: new Stroke({
+            color: 'magenta',
+            width: 2,
+        }),
+        fill: new Fill({
+            color: 'magenta',
+        }),
+        image: new CircleStyle({
+            radius: 10,
+            fill: null,
+            stroke: new Stroke({
+                color: 'magenta',
+            }),
+        }),
+    }),
+};
+
+/*=============================================================================*/
+
+const GeoJson = ({ cargoList, addCargo }) => {
+    const [cargoData, setCargoData] = useState([]);
+    useEffect(() => {
         const styleFunction = function (feature) {
             return styles[feature.getGeometry().getType()];
         };
@@ -149,6 +160,8 @@ const GeoJson = () => {
             }),
         });
 
+        console.log('map ===== ', map);
+
         const selectedFeatures = select.getFeatures();
 
         dragBox.on('boxend', function () {
@@ -159,20 +172,9 @@ const GeoJson = () => {
                     feature.getGeometry().intersectsExtent(extent)
                 );
 
-            // features that intersect the box geometry are added to the
-            // collection of selected features
-
-            // if the view is not obliquely rotated the box geometry and
-            // its extent are equalivalent so intersecting features can
-            // be added directly to the collection
             const rotation = map.getView().getRotation();
             const oblique = rotation % (Math.PI / 2) !== 0;
 
-            // when the view is obliquely rotated the box extent will
-            // exceed its geometry so both the box and the candidate
-            // feature geometries are rotated around a common anchor
-            // to confirm that, with the box geometry aligned with its
-            // extent, the geometries intersect
             if (oblique) {
                 const anchor = [0, 0];
                 const geometry = dragBox.getGeometry().clone();
@@ -195,21 +197,27 @@ const GeoJson = () => {
             selectedFeatures.clear();
         });
 
-        const infoBox = document.getElementById('cargoName');
+        // const infoBox = document.getElementById('cargoName');
 
         selectedFeatures.on(['add', 'remove'], function () {
             const names = selectedFeatures.getArray().map(function (feature) {
-                return feature.get('tml_bl_cd');
+                // return JSON.stringify(feature);
+                return JSON.stringify(feature.id_);
+                // return JSON.stringify(feature.values_.geometry.orientedFlatCoordinates_);
+                // return JSON.stringify(feature.values_.geometry.extent_);
             });
             if (names.length > 0) {
-                infoBox.innerHTML = names.join(', ');
+                // addCargo();
+                setCargoData([names.join(', ')]);
+                // infoBox.innerHTML = names.join(', ');
             } else {
-                infoBox.innerHTML = 'None';
+                setCargoData([]);
+                // infoBox.innerHTML = 'None';
             }
         });
 
         const mousePosition = new MousePosition({
-            coordinateFormat: createStringXY(4),
+            coordinateFormat: createStringXY(5),
             projection: 'EPSG:4326',
             className: 'custom-mouse-position',
             target: document.getElementById('mouse-position'),
@@ -229,27 +237,40 @@ const GeoJson = () => {
 
         console.log('aaaaaaaaaaaa', vectorSource);
     }, []);
+
+    useEffect(() => {
+        function a() {
+            addCargo(cargoData);
+        }
+        a();
+        console.log('cargoData', cargoData);
+    }, [cargoData]);
+
+    useEffect(() => {
+        console.log('cargoList', cargoList);
+    }, [cargoList]);
+
     return (
         <>
             <div
                 id='map'
                 className='map'
-                style={{ width: '98vw', height: '89vh' }}
+                style={{ width: '98vw', height: '87vh' }}
             >
-                <div style={{ marginBottom: 10 }}>
-                    <form style={{ position: 'absolute' }}>
-                        <label for='projection'>Projection </label>
-                        <select id='projection'>
+                <div style={{ margin: 10 }}>
+                    <form>
+                        <label>Projection </label>
+                        <select id='projection' style={{ marginRight: 20 }}>
                             <option value='EPSG:4326'>EPSG:4326</option>
                             <option value='EPSG:3857'>EPSG:3857</option>
                         </select>
-                        <label for='precision'>Precision</label>
+                        <label>Precision </label>
                         <input
                             id='precision'
                             type='number'
                             min='0'
                             max='12'
-                            value='4'
+                            defaultValue='4'
                         />
                     </form>
                     <div
@@ -258,7 +279,7 @@ const GeoJson = () => {
                             position: 'absolute',
                             zIndex: 100,
                             width: '100%',
-                            margin: '0 auto',
+                            margin: '10px auto',
                             textAlign: 'center',
                             fontSize: 20,
                             fontWeight: 600,
@@ -266,8 +287,35 @@ const GeoJson = () => {
                     ></div>
                 </div>
             </div>
+            <div
+                style={{
+                    background: '#aaa',
+                    height: 50,
+                    position: 'relative',
+                }}
+            >
+                화물 이름
+                <div id='cargoName'>{cargoList}</div>
+            </div>
         </>
     );
 };
 
-export default GeoJson;
+const mapStateToProps = ({ gloryReducer }) => {
+    return {
+        cargoList: gloryReducer.cargoList,
+    };
+};
+
+// const mapDispatchToProps = (dispatch) => {
+//     return {
+//         addCargo: () => dispatch(addCargo()),
+//     };
+// };
+
+const mapDispatchToProps = {
+    addCargo: (cargoData) => addCargo(cargoData),
+    // addCargo,
+};
+
+export default connect(mapStateToProps, mapDispatchToProps)(GeoJson);
